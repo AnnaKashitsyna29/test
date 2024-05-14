@@ -1,4 +1,5 @@
 import arcade
+import arcade.gui
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 650
@@ -58,9 +59,9 @@ class Player(arcade.Sprite):
             self.texture = self.textures[1]
 
 
-class MyGame(arcade.Window):
+class MyGame(arcade.View):
     def __init__(self):
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        super().__init__()
 
         self.scene: arcade.Scene = None
 
@@ -85,8 +86,8 @@ class MyGame(arcade.Window):
         arcade.set_background_color(arcade.color.CORNFLOWER_BLUE)
 
     def setup(self):
-        self.camera = arcade.Camera(self.width, self.height)
-        self.gui_camera = arcade.Camera(self.width, self.height)
+        self.camera = arcade.Camera(self.window.width, self.window.height)
+        self.gui_camera = arcade.Camera(self.window.width, self.window.height)
 
         map_name = f":resources:tiled_maps/map2_level_{self.level}.json"
 
@@ -127,6 +128,9 @@ class MyGame(arcade.Window):
             self.player_sprite, gravity_constant=GRAVITY, walls=self.scene["Platforms"]
         )
         self.physics_engine.enable_multi_jump(2)
+
+    def on_show_view(self):
+        self.setup()
 
     def on_draw(self):
         self.clear()
@@ -195,24 +199,89 @@ class MyGame(arcade.Window):
         if arcade.check_for_collision_with_list(
                 self.player_sprite, self.scene[LAYER_NAME_DONT_TOUCH]
         ):
-            self.player_sprite.change_x = 0
-            self.player_sprite.change_y = 0
-            self.player_sprite.center_x = PLAYER_START_X
-            self.player_sprite.center_y = PLAYER_START_Y
+            game_over = GameMenuView("Lose", color=arcade.color.RED)
+            self.window.show_view(game_over)
 
         if self.player_sprite.center_x >= self.end_of_map:
             self.level += 1
 
             self.reset_score = False
+            if self.level == 3:
+                game_over = GameMenuView("Win", color=arcade.color.GREEN)
+                self.window.show_view(game_over)
+                return
 
             self.setup()
         self.center_camera_to_player()
 
 
+class GameMenuView(arcade.View):
+
+    def __init__(self, label, color=arcade.color.WHITE):
+        super().__init__()
+        self.v_box = None
+        self.manager = None
+        self.label_text = label
+        self.color = color
+
+    def on_show_view(self):
+        """Called when switching to this view"""
+        arcade.set_background_color(arcade.color.BLACK)
+        self.manager = arcade.gui.UIManager()
+        self.manager.enable()
+
+        # Set background color
+        arcade.set_background_color(arcade.color.DARK_BLUE_GRAY)
+
+        # Create a vertical BoxGroup to align buttons
+        self.v_box = arcade.gui.UIBoxLayout()
+
+        label = arcade.gui.UILabel(text=self.label_text, font_size=30, text_color=self.color)
+        self.v_box.add(label.with_space_around(bottom=20))
+
+
+
+        # Create the buttons
+        start_button = arcade.gui.UIFlatButton(text="Start Game", width=200)
+        self.v_box.add(start_button.with_space_around(bottom=20))
+
+        # Again, method 1. Use a child class to handle events.
+        quit_button = arcade.gui.UIFlatButton(text="Quit", width=200)
+        self.v_box.add(quit_button)
+
+        # --- Method 2 for handling click events,
+        # assign self.on_click_start as callback
+
+        # --- Method 3 for handling click events,
+        # use a decorator to handle on_click events
+        @quit_button.event("on_click")
+        def on_click_quit(event):
+            arcade.close_window()
+
+        @start_button.event("on_click")
+        def on_click_start(event):
+            game_view = MyGame()
+            self.window.show_view(game_view)
+
+        # Create a widget to hold the v_box widget, that will center the buttons
+        self.manager.add(
+            arcade.gui.UIAnchorWidget(
+                anchor_x="center_x",
+                anchor_y="center_y",
+                child=self.v_box)
+        )
+
+    def on_draw(self):
+        """Draw the game overview"""
+        self.clear()
+        self.manager.draw()
+
+
 def main():
-    window = MyGame()
-    window.setup()
-    window.run()
+    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+    game_view = GameMenuView(label="Menu")
+    window.show_view(game_view)
+    arcade.run()
 
 
 if __name__ == '__main__':
