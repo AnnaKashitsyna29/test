@@ -5,6 +5,7 @@ SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 650
 SCREEN_TITLE = "Platformer"
 RESIZABLE = True
+SELECTED_SKIN = "pngegg.png"
 
 CHARACTER_SCALING = 0.1
 TILE_SCALING = 0.5
@@ -40,9 +41,9 @@ class Player(arcade.Sprite):
         self.scale = CHARACTER_SCALING
         self.textures = []
 
-        texture = arcade.load_texture("sprites/images/pngegg.png", flipped_horizontally=True)
+        texture = arcade.load_texture(f"sprites/player/{SELECTED_SKIN}", flipped_horizontally=True)
         self.textures.append(texture)
-        texture = arcade.load_texture("sprites/images/pngegg.png")
+        texture = arcade.load_texture(f"sprites/player/{SELECTED_SKIN}")
         self.textures.append(texture)
         self.texture = texture
 
@@ -213,6 +214,89 @@ class MyGame(arcade.View):
         self.center_camera_to_player()
 
 
+class GameSettings(arcade.View):
+    def __init__(self):
+        super().__init__()
+        self.skins_box = None
+        self.v_box = None
+        self.manager = None
+
+    def on_show_view(self):
+        self.manager = arcade.gui.UIManager()
+        self.manager.enable()
+
+        arcade.set_background_color(arcade.color.DARK_BLUE_GRAY)
+
+        self.v_box = arcade.gui.UIBoxLayout()
+        self.skins_box = arcade.gui.UIBoxLayout(vertical=False)
+
+        label = arcade.gui.UILabel(text="Settings", font_size=30, text_color=arcade.color.WHITE)
+        self.v_box.add(label.with_space_around(bottom=20))
+
+        skin1 = arcade.gui.UITextureButton(texture=arcade.texture.load_texture(f"sprites/player/pngegg.png"), width=150,
+                                           height=200, )
+        self.skins_box.add(skin1.with_space_around(left=10))
+
+        skin2 = arcade.gui.UITextureButton(texture=arcade.texture.load_texture(f"sprites/player/pngegg_blue.png"),
+                                           width=150, height=200, )
+        self.skins_box.add(skin2.with_space_around(left=10))
+
+        skin3 = arcade.gui.UITextureButton(texture=arcade.texture.load_texture(f"sprites/player/pngegg_pink.png"),
+                                           width=150, height=200, )
+        self.skins_box.add(skin3.with_space_around(left=10))
+        @skin1.event("on_click")
+        def on_click_quit(event):
+            global SELECTED_SKIN
+            SELECTED_SKIN = "pngegg.png"
+            label.text = "Default"
+
+        @skin2.event("on_click")
+        def on_click_quit(event):
+            global SELECTED_SKIN
+            SELECTED_SKIN = "pngegg_blue.png"
+            label.text = "Blue"
+
+        @skin3.event("on_click")
+        def on_click_quit(event):
+            global SELECTED_SKIN
+            SELECTED_SKIN = "pngegg_pink.png"
+            label.text = "Pink"
+
+        self.v_box.add(self.skins_box)
+
+        label_text = ""
+
+        if SELECTED_SKIN == "pngegg.png":
+            label_text = "Defualt"
+        elif SELECTED_SKIN == "pngegg_blue.png":
+            label_text = "Blue"
+        else:
+            label_text = "Pink"
+
+        label = arcade.gui.UILabel(text=label_text, font_size=15, text_color=arcade.color.WHITE)
+        self.v_box.add(label.with_space_around(bottom=20))
+
+        quit_button = arcade.gui.UIFlatButton(text="Quit", width=200)
+        self.v_box.add(quit_button.with_space_around(top=20))
+
+        @quit_button.event("on_click")
+        def on_click_quit(event):
+            print(event.source.text)
+            menu_view = GameMenuView("Menu", arcade.color.WHITE)
+            self.window.show_view(menu_view)
+
+        self.manager.add(
+            arcade.gui.UIAnchorWidget(
+                anchor_x="center_x",
+                anchor_y="center_y",
+                child=self.v_box)
+        )
+
+    def on_draw(self):
+        self.clear()
+        self.manager.draw()
+
+
 class GameMenuView(arcade.View):
 
     def __init__(self, label, color=arcade.color.WHITE):
@@ -223,7 +307,6 @@ class GameMenuView(arcade.View):
         self.color = color
 
     def on_show_view(self):
-        arcade.set_background_color(arcade.color.BLACK)
         self.manager = arcade.gui.UIManager()
         self.manager.enable()
 
@@ -234,11 +317,12 @@ class GameMenuView(arcade.View):
         label = arcade.gui.UILabel(text=self.label_text, font_size=30, text_color=self.color)
         self.v_box.add(label.with_space_around(bottom=20))
 
-
-
         # Create the buttons
         start_button = arcade.gui.UIFlatButton(text="Start Game", width=200)
         self.v_box.add(start_button.with_space_around(bottom=20))
+
+        settings_button = arcade.gui.UIFlatButton(text="Settings", width=200)
+        self.v_box.add(settings_button.with_space_around(bottom=20))
 
         # Again, method 1. Use a child class to handle events.
         quit_button = arcade.gui.UIFlatButton(text="Quit", width=200)
@@ -247,6 +331,11 @@ class GameMenuView(arcade.View):
         @quit_button.event("on_click")
         def on_click_quit(event):
             arcade.close_window()
+
+        @settings_button.event("on_click")
+        def on_click_settings(event):
+            settings_view = GameSettings()
+            self.window.show_view(settings_view)
 
         @start_button.event("on_click")
         def on_click_start(event):
