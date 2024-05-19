@@ -1,13 +1,15 @@
+import time
+
 import arcade
 import arcade.gui
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 650
-SCREEN_TITLE = "Platformer"
+SCREEN_TITLE = "Пингви"
 RESIZABLE = True
-SELECTED_SKIN = "pngegg.png"
+SELECTED_SKIN = "pngegg"
 
-CHARACTER_SCALING = 0.1
+CHARACTER_SCALING = 0.5
 TILE_SCALING = 0.5
 COIN_SCALING = 0.5
 
@@ -15,18 +17,15 @@ PLAYER_MOVEMENT_SPEED = 5
 GRAVITY = 1
 PLAYER_JUMP_SPEED = 20
 
-# Indexes of textures
-TEXTURE_LEFT = 0
-TEXTURE_RIGHT = 1
+TEXTURE_LEFT = 1
+TEXTURE_RIGHT = 0
 
 SPRITE_PIXEL_SIZE = 128
 GRID_PIXEL_SIZE = SPRITE_PIXEL_SIZE * TILE_SCALING
 
-# Player starting position
 PLAYER_START_X = 64
 PLAYER_START_Y = 225
 
-# Layer Names from our TileMap
 LAYER_NAME_PLATFORMS = "Platforms"
 LAYER_NAME_COINS = "Coins"
 LAYER_NAME_FOREGROUND = "Foreground"
@@ -38,26 +37,59 @@ class Player(arcade.Sprite):
     def __init__(self):
         super().__init__()
 
+        self.current_texture = 0
         self.scale = CHARACTER_SCALING
-        self.textures = []
+        self.texture_direction = TEXTURE_RIGHT
 
-        texture = arcade.load_texture(f"sprites/player/{SELECTED_SKIN}", flipped_horizontally=True)
-        self.textures.append(texture)
-        texture = arcade.load_texture(f"sprites/player/{SELECTED_SKIN}")
-        self.textures.append(texture)
-        self.texture = texture
+        self.textures_idle_pair = arcade.texture.load_texture_pair(f"sprites/player/{SELECTED_SKIN}.png")
+        self.textures_jump_pair = arcade.texture.load_texture_pair(
+            f"sprites/player/animation/jump/jump_{SELECTED_SKIN}.png")
 
+        self.textures_fall_pair = arcade.texture.load_texture_pair(
+            f"sprites/player/animation/fall/fall_{SELECTED_SKIN}.png")
+        self.walk_textures = []
+        for i in range(2):
+            texture = arcade.texture.load_texture_pair(f"sprites/player/animation/walk/step{i + 1}_{SELECTED_SKIN}.png")
+            self.walk_textures.append(texture)
+
+        self.texture = self.textures_idle_pair[self.texture_direction]
         self.end_of_map = 0
 
         self.level = 1
         self.reset_score = True
 
+        self.update_texture_limit = 0
+
     def update(self):
 
-        if self.change_x < 0:
-            self.texture = self.textures[0]
-        elif self.change_x > 0:
-            self.texture = self.textures[1]
+        if self.change_x < 0 and self.texture_direction == TEXTURE_RIGHT:
+            self.texture_direction = TEXTURE_LEFT
+            self.texture = self.textures_idle_pair[self.texture_direction]
+        elif self.change_x > 0 and self.texture_direction == TEXTURE_LEFT:
+            self.texture_direction = TEXTURE_RIGHT
+            self.texture = self.textures_idle_pair[self.texture_direction]
+
+        if self.change_y < 0:
+            self.texture = self.textures_fall_pair[self.texture_direction]
+            return
+
+        if self.change_y > 0:
+            self.texture = self.textures_jump_pair[self.texture_direction]
+            return
+
+        if self.change_x == 0:
+            self.texture = self.textures_idle_pair[self.texture_direction]
+            return
+
+        self.update_texture_limit += abs(self.change_x)
+
+        if self.update_texture_limit >= 30:
+            self.current_texture += 1
+            if self.current_texture > 1:
+                self.current_texture = 0
+            self.update_texture_limit = 0
+
+        self.texture = self.walk_textures[self.current_texture][self.texture_direction]
 
 
 class MyGame(arcade.View):
@@ -183,27 +215,24 @@ class MyGame(arcade.View):
     def on_update(self, delta_time):
         self.physics_engine.update()
         self.player_sprite.update()
-        coin_hit_list = arcade.check_for_collision_with_list(
-            self.player_sprite, self.scene[LAYER_NAME_COINS]
-        )
-
-        scale_collision = 0.5
 
         for coin in self.scene[LAYER_NAME_COINS]:
-            if ((coin.center_x - coin.width/2 <= self.player_sprite.center_x <= coin.center_x + coin.width/2) and
-                    (coin.center_y - coin.height/2 <= self.player_sprite.center_y <= coin.center_y + coin.height/2)):
+            if ((coin.center_x - coin.width / 2 <= self.player_sprite.center_x <= coin.center_x + coin.width / 2) and
+                    (
+                            coin.center_y - coin.height / 2 <= self.player_sprite.center_y <= coin.center_y + coin.height / 2)):
                 self.scene[LAYER_NAME_COINS].remove(coin)
                 self.score += 1
+
+        for elem in self.scene[LAYER_NAME_DONT_TOUCH]:
+            if ((elem.center_x - elem.width / 2 <= self.player_sprite.center_x <= elem.center_x + elem.width / 2) and
+                    (
+                            elem.center_y - elem.height / 2 <= self.player_sprite.center_y <= elem.center_y + elem.height / 2)):
+                game_over = GameMenuView("Lose", color=arcade.color.RED)
+                self.window.show_view(game_over)
 
         if self.player_sprite.center_y < -100:
             self.player_sprite.center_x = PLAYER_START_X
             self.player_sprite.center_y = PLAYER_START_Y
-
-        if arcade.check_for_collision_with_list(
-                self.player_sprite, self.scene[LAYER_NAME_DONT_TOUCH]
-        ):
-            game_over = GameMenuView("Lose", color=arcade.color.RED)
-            self.window.show_view(game_over)
 
         if self.player_sprite.center_x >= self.end_of_map:
             self.level += 1
@@ -238,43 +267,43 @@ class GameSettings(arcade.View):
         self.v_box.add(label.with_space_around(bottom=20))
 
         skin1 = arcade.gui.UITextureButton(texture=arcade.texture.load_texture(f"sprites/player/pngegg.png"), width=150,
-                                           height=200, )
+                                           height=150, )
         self.skins_box.add(skin1.with_space_around(left=10))
 
-        skin2 = arcade.gui.UITextureButton(texture=arcade.texture.load_texture(f"sprites/player/pngegg_blue.png"),
-                                           width=150, height=200, )
+        skin2 = arcade.gui.UITextureButton(texture=arcade.texture.load_texture(f"sprites/player/pngegg_green.png"),
+                                           width=150, height=150, )
         self.skins_box.add(skin2.with_space_around(left=10))
 
         skin3 = arcade.gui.UITextureButton(texture=arcade.texture.load_texture(f"sprites/player/pngegg_pink.png"),
-                                           width=150, height=200, )
+                                           width=150, height=150, )
         self.skins_box.add(skin3.with_space_around(left=10))
 
         @skin1.event("on_click")
         def on_click_quit(event):
             global SELECTED_SKIN
-            SELECTED_SKIN = "pngegg.png"
+            SELECTED_SKIN = "pngegg"
             label.text = "Selected skin: Default"
 
         @skin2.event("on_click")
         def on_click_quit(event):
             global SELECTED_SKIN
-            SELECTED_SKIN = "pngegg_blue.png"
-            label.text = "Selected skin: Blue"
+            SELECTED_SKIN = "pngegg_green"
+            label.text = "Selected skin: Green"
 
         @skin3.event("on_click")
         def on_click_quit(event):
             global SELECTED_SKIN
-            SELECTED_SKIN = "pngegg_pink.png"
+            SELECTED_SKIN = "pngegg_pink"
             label.text = "Selected skin: Pink"
 
         self.v_box.add(self.skins_box)
 
         label_text = ""
 
-        if SELECTED_SKIN == "pngegg.png":
+        if SELECTED_SKIN == "pngegg":
             label_text = "Defualt"
-        elif SELECTED_SKIN == "pngegg_blue.png":
-            label_text = "Blue"
+        elif SELECTED_SKIN == "pngegg_green":
+            label_text = "Green"
         else:
             label_text = "Pink"
 
