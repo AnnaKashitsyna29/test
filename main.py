@@ -187,9 +187,13 @@ class MyGame(arcade.View):
             self.player_sprite, self.scene[LAYER_NAME_COINS]
         )
 
-        for coin in coin_hit_list:
-            coin.remove_from_sprite_lists()
-            self.score += 1
+        scale_collision = 0.5
+
+        for coin in self.scene[LAYER_NAME_COINS]:
+            if ((coin.center_x - coin.width/2 <= self.player_sprite.center_x <= coin.center_x + coin.width/2) and
+                    (coin.center_y - coin.height/2 <= self.player_sprite.center_y <= coin.center_y + coin.height/2)):
+                self.scene[LAYER_NAME_COINS].remove(coin)
+                self.score += 1
 
         if self.player_sprite.center_y < -100:
             self.player_sprite.center_x = PLAYER_START_X
@@ -244,23 +248,24 @@ class GameSettings(arcade.View):
         skin3 = arcade.gui.UITextureButton(texture=arcade.texture.load_texture(f"sprites/player/pngegg_pink.png"),
                                            width=150, height=200, )
         self.skins_box.add(skin3.with_space_around(left=10))
+
         @skin1.event("on_click")
         def on_click_quit(event):
             global SELECTED_SKIN
             SELECTED_SKIN = "pngegg.png"
-            label.text = "Default"
+            label.text = "Selected skin: Default"
 
         @skin2.event("on_click")
         def on_click_quit(event):
             global SELECTED_SKIN
             SELECTED_SKIN = "pngegg_blue.png"
-            label.text = "Blue"
+            label.text = "Selected skin: Blue"
 
         @skin3.event("on_click")
         def on_click_quit(event):
             global SELECTED_SKIN
             SELECTED_SKIN = "pngegg_pink.png"
-            label.text = "Pink"
+            label.text = "Selected skin: Pink"
 
         self.v_box.add(self.skins_box)
 
@@ -273,7 +278,7 @@ class GameSettings(arcade.View):
         else:
             label_text = "Pink"
 
-        label = arcade.gui.UILabel(text=label_text, font_size=15, text_color=arcade.color.WHITE)
+        label = arcade.gui.UILabel(text=f"Selected skin: {label_text}", font_size=15, text_color=arcade.color.WHITE)
         self.v_box.add(label.with_space_around(bottom=20))
 
         quit_button = arcade.gui.UIFlatButton(text="Quit", width=200)
@@ -281,7 +286,6 @@ class GameSettings(arcade.View):
 
         @quit_button.event("on_click")
         def on_click_quit(event):
-            print(event.source.text)
             menu_view = GameMenuView("Menu", arcade.color.WHITE)
             self.window.show_view(menu_view)
 
